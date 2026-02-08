@@ -2,16 +2,18 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: quiz-postgres
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: quiz
-      POSTGRES_PASSWORD: quiz123
-      POSTGRES_DB: realtime_quiz
+      POSTGRES_USER: ${DB_USER:-quiz}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-quiz123}
+      POSTGRES_DB: ${DB_NAME:-realtime_quiz}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U quiz -d realtime_quiz"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-quiz} -d ${DB_NAME:-realtime_quiz}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -19,8 +21,10 @@ services:
   redis:
     image: redis:7-alpine
     container_name: quiz-redis
+    env_file:
+      - .env
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
