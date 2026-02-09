@@ -5,13 +5,30 @@ import (
 	"github.com/nguyen1302/realtime-quiz/internal/repository"
 )
 
-type Services struct {
-	Auth AuthService
-	// Add other services here
+// Service is the interface for the service manager
+type Service interface {
+	Auth() AuthService
+	Quiz() QuizService
 }
 
-func NewServices(repos *repository.Repositories, cfg *config.Config) *Services {
-	return &Services{
-		Auth: NewAuthService(repos.User, cfg.JWT),
+// serviceImpl is the concrete implementation of Service
+type serviceImpl struct {
+	auth AuthService
+	quiz QuizService
+}
+
+// NewService creates a new instance of Service
+func NewService(repo repository.Repository, cfg *config.Config) Service {
+	return &serviceImpl{
+		auth: NewAuthService(repo.User(), cfg.JWT),
+		quiz: NewQuizService(repo.Quiz(), repo.Question()),
 	}
+}
+
+func (s *serviceImpl) Auth() AuthService {
+	return s.auth
+}
+
+func (s *serviceImpl) Quiz() QuizService {
+	return s.quiz
 }

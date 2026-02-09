@@ -2,25 +2,25 @@ package bootstrap
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nguyen1302/realtime-quiz/internal/config"
 	"github.com/nguyen1302/realtime-quiz/internal/handler"
 	"github.com/nguyen1302/realtime-quiz/internal/middleware"
 	"github.com/nguyen1302/realtime-quiz/internal/repository"
 	"github.com/nguyen1302/realtime-quiz/internal/service"
+	"gorm.io/gorm"
 )
 
 type Router struct {
 	engine   *gin.Engine
-	handlers *handler.Handlers
-	services *service.Services
+	handlers handler.Handler // Interface
+	services service.Service // Interface
 }
 
-func NewRouter(db *pgxpool.Pool, cfg *config.Config) *Router {
+func NewRouter(db *gorm.DB, cfg *config.Config) *Router {
 	// Initialize managers
-	repos := repository.NewRepositories(db)
-	services := service.NewServices(repos, cfg)
-	handlers := handler.NewHandlers(services)
+	repos := repository.NewRepository(db)
+	services := service.NewService(repos, cfg)
+	handlers := handler.NewHandler(services)
 
 	// Setup Gin
 	gin.SetMode(gin.ReleaseMode)
@@ -46,15 +46,24 @@ func (r *Router) setupRoutes() {
 	// Public auth routes
 	auth := api.Group("/auth")
 	{
-		auth.POST("/register", r.handlers.Auth.Register)
-		auth.POST("/login", r.handlers.Auth.Login)
+		auth.POST("/register", r.handlers.Auth().Register)
+		auth.POST("/login", r.handlers.Auth().Login)
 	}
 
 	// Protected routes
 	protected := api.Group("")
-	protected.Use(middleware.AuthMiddleware(r.services.Auth))
+	protected.Use(middleware.AuthMiddleware(r.services.Auth()))
 	{
-		protected.GET("/auth/me", r.handlers.Auth.GetMe)
+		protected.GET("/auth/me", r.handlers.Auth().GetMe)
+
+		// Quiz routes
+		quizzes := protected.Group("/quizzes")
+		{
+			quizzes.POST("", r.handlers.Quiz().CreateQuiz)
+			quizzes.GET("/:id", r.handlers.Quiz().GetQuiz)
+			quizzes.POST("/:id/questions", r.handlers.Quiz().AddQuestion)
+			quizzes.POST("/join", r.handlers.Quiz().JoinQuiz)
+		}
 	}
 
 	// Health check

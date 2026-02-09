@@ -10,17 +10,23 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type AuthHandler struct {
+type AuthHandler interface {
+	Register(c *gin.Context)
+	Login(c *gin.Context)
+	GetMe(c *gin.Context)
+}
+
+type authHandler struct {
 	authService service.AuthService
 }
 
-func NewAuthHandler(authService service.AuthService) *AuthHandler {
-	return &AuthHandler{authService: authService}
+func NewAuthHandler(authService service.AuthService) AuthHandler {
+	return &authHandler{authService: authService}
 }
 
 // Register handles user registration
 // POST /api/v1/auth/register
-func (h *AuthHandler) Register(c *gin.Context) {
+func (h *authHandler) Register(c *gin.Context) {
 	var req service.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "Invalid request body", err.Error())
@@ -49,7 +55,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 // Login handles user authentication
 // POST /api/v1/auth/login
-func (h *AuthHandler) Login(c *gin.Context) {
+func (h *authHandler) Login(c *gin.Context) {
 	var req service.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "Invalid request body", err.Error())
@@ -78,7 +84,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 // GetMe returns current authenticated user info
 // GET /api/v1/auth/me
-func (h *AuthHandler) GetMe(c *gin.Context) {
+func (h *authHandler) GetMe(c *gin.Context) {
 	claims, exists := c.Get("claims")
 	if !exists {
 		response.Error(c, http.StatusUnauthorized, "Unauthorized", nil)

@@ -38,18 +38,16 @@ func main() {
 
 	slog.Info("Configuration loaded", "path", configPath)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Initialize PostgreSQL
-	pgPool, err := bootstrap.NewPostgresPool(ctx, &cfg.Database)
+	// Initialize PostgreSQL (GORM)
+	db, err := bootstrap.NewGormDB(&cfg.Database)
 	if err != nil {
 		slog.Error("Failed to connect to PostgreSQL", "error", err)
 		os.Exit(1)
 	}
-	defer bootstrap.ClosePostgres(pgPool)
+	defer bootstrap.CloseGormDB(db)
 
 	// Initialize Redis
+	ctx := context.Background()
 	redisClient, err := bootstrap.NewRedisClient(ctx, &cfg.Redis)
 	if err != nil {
 		slog.Error("Failed to connect to Redis", "error", err)
@@ -58,7 +56,7 @@ func main() {
 	defer bootstrap.CloseRedis(redisClient)
 
 	// Initialize Router
-	router := bootstrap.NewRouter(pgPool, cfg)
+	router := bootstrap.NewRouter(db, cfg)
 
 	// Create HTTP server
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)

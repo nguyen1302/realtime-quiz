@@ -5,14 +5,13 @@ import (
 	"errors"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/nguyen1302/realtime-quiz/internal/config"
 	"github.com/nguyen1302/realtime-quiz/internal/models"
 	"github.com/nguyen1302/realtime-quiz/internal/repository"
-
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 var (
@@ -99,7 +98,7 @@ func (s *authService) Register(ctx context.Context, req RegisterRequest) (*model
 func (s *authService) Login(ctx context.Context, req LoginRequest) (string, *models.User, error) {
 	user, err := s.userRepo.FindByEmail(ctx, req.Email)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", nil, ErrInvalidCredentials
 		}
 		return "", nil, err
