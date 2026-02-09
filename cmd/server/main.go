@@ -2,12 +2,16 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
-	"realtime-quiz/internal/bootstrap"
+	"github.com/nguyen1302/realtime-quiz/internal/bootstrap"
+	"github.com/nguyen1302/realtime-quiz/internal/config"
 )
 
 func main() {
@@ -26,7 +30,7 @@ func main() {
 	}
 
 	// Load configuration from YAML
-	cfg, err := bootstrap.LoadConfig(configPath)
+	cfg, err := config.Load(configPath)
 	if err != nil {
 		slog.Error("Failed to load configuration", "error", err, "path", configPath)
 		os.Exit(1)
@@ -53,12 +57,41 @@ func main() {
 	}
 	defer bootstrap.CloseRedis(redisClient)
 
-	slog.Info("All connections established successfully! ✅")
+	// Initialize Router
+	router := bootstrap.NewRouter(pgPool, cfg)
 
-	// Wait for interrupt signal to gracefully shutdown
+	// Create HTTP server
+	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
+	server := &http.Server{
+		Addr:    addr,
+		Handler: router.Engine(),
+	}
+
+	// Start server in goroutine
+	go func() {
+		slog.Info("HTTP server starting", "address", addr)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("Failed to start server", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	slog.Info("Server is running! ✅", "address", addr)
+
+	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
 	slog.Info("Shutting down server...")
+
+	// Graceful shutdown with timeout
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		slog.Error("Server forced to shutdown", "error", err)
+	}
+
+	slog.Info("Server exited properly")
 }

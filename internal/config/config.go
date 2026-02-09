@@ -1,4 +1,4 @@
-package bootstrap
+package config
 
 import (
 	"fmt"
@@ -12,6 +12,7 @@ type Config struct {
 	Server   ServerConfig   `yaml:"server"`
 	Database DatabaseConfig `yaml:"database"`
 	Redis    RedisConfig    `yaml:"redis"`
+	JWT      JWTConfig      `yaml:"jwt"`
 }
 
 type ServerConfig struct {
@@ -35,6 +36,11 @@ type RedisConfig struct {
 	DB       int    `yaml:"db"`
 }
 
+type JWTConfig struct {
+	Secret      string `yaml:"secret"`
+	ExpiryHours int    `yaml:"expiry_hours"`
+}
+
 // DSN returns the PostgreSQL connection string
 func (c *DatabaseConfig) DSN() string {
 	return fmt.Sprintf(
@@ -48,12 +54,12 @@ func (c *RedisConfig) Addr() string {
 	return fmt.Sprintf("%s:%d", c.Host, c.Port)
 }
 
-// LoadConfig loads configuration following the flow:
+// Load loads configuration following the flow:
 // 1. Load .env file into environment variables
 // 2. Read YAML config file
 // 3. Expand ${VAR} references in YAML with env values
 // 4. Parse into Config struct
-func LoadConfig(configPath string) (*Config, error) {
+func Load(configPath string) (*Config, error) {
 	// Step 1: Load .env file (ignore error if not exists)
 	_ = godotenv.Load()
 
@@ -64,14 +70,13 @@ func LoadConfig(configPath string) (*Config, error) {
 	}
 
 	// Step 3: Expand environment variables in YAML content
-	// This replaces ${VAR} or $VAR with actual env values
 	expandedData := os.ExpandEnv(string(data))
 
 	// Step 4: Parse YAML into Config struct
-	var config Config
-	if err := yaml.Unmarshal([]byte(expandedData), &config); err != nil {
+	var cfg Config
+	if err := yaml.Unmarshal([]byte(expandedData), &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
-	return &config, nil
+	return &cfg, nil
 }

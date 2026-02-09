@@ -6,11 +6,13 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/nguyen1302/realtime-quiz/internal/config"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // NewPostgresPool creates a new PostgreSQL connection pool
-func NewPostgresPool(ctx context.Context, cfg *DatabaseConfig) (*pgxpool.Pool, error) {
+func NewPostgresPool(ctx context.Context, cfg *config.DatabaseConfig) (*pgxpool.Pool, error) {
 	poolConfig, err := pgxpool.ParseConfig(cfg.DSN())
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse postgres config: %w", err)
