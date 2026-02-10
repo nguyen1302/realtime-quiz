@@ -14,6 +14,8 @@ type QuizHandler interface {
 	AddQuestion(c *gin.Context)
 	GetQuiz(c *gin.Context)
 	JoinQuiz(c *gin.Context)
+	SubmitAnswer(c *gin.Context)
+	GetLeaderboard(c *gin.Context)
 }
 
 type quizHandler struct {
@@ -40,6 +42,11 @@ type AddQuestionRequest struct {
 
 type JoinQuizRequest struct {
 	Code string `json:"code" binding:"required,len=6"`
+}
+
+type SubmitAnswerRequest struct {
+	QuestionID string `json:"question_id" binding:"required"`
+	Answer     string `json:"answer" binding:"required"`
 }
 
 // POST /api/v1/quizzes
@@ -125,4 +132,63 @@ func (h *quizHandler) JoinQuiz(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, "Joined quiz successfully", quiz)
+}
+
+// POST /api/v1/quizzes/:id/submit
+func (h *quizHandler) SubmitAnswer(c *gin.Context) {
+	quizID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid quiz ID", nil)
+		return
+	}
+
+	userID := c.MustGet("userID").(uuid.UUID)
+
+	var req SubmitAnswerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	questionID, err := uuid.Parse(req.QuestionID)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid question ID", nil)
+		return
+	}
+
+	input := service.SubmitAnswerInput{
+		QuizID:     quizID,
+		QuestionID: questionID,
+		UserID:     userID,
+		Answer:     req.Answer,
+	}
+
+	answer, err := h.quizService.SubmitAnswer(c.Request.Context(), input)
+	if err != nil {
+		if err == service.ErrAlreadyAnswered {
+			response.Error(c, http.StatusConflict, err.Error(), nil)
+			return
+		}
+		response.Error(c, http.StatusInternalServerError, "Failed to submit answer", nil)
+		return
+	}
+
+	response.Success(c, http.StatusCreated, "Answer submitted", answer)
+}
+
+// GET /api/v1/quizzes/:id/leaderboard
+func (h *quizHandler) GetLeaderboard(c *gin.Context) {
+	quizID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid quiz ID", nil)
+		return
+	}
+
+	leaderboard, err := h.quizService.GetLeaderboard(c.Request.Context(), quizID)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "Failed to get leaderboard", nil)
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Leaderboard retrieved", leaderboard)
 }

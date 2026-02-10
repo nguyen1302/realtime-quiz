@@ -56,7 +56,7 @@ func main() {
 	defer bootstrap.CloseRedis(redisClient)
 
 	// Initialize Router
-	router := bootstrap.NewRouter(db, cfg)
+	router := bootstrap.NewRouter(db, redisClient, cfg)
 
 	// Create HTTP server
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -9,21 +10,27 @@ type Repository interface {
 	User() UserRepository
 	Quiz() QuizRepository
 	Question() QuestionRepository
+	Leaderboard() LeaderboardRepository
+	Answer() AnswerRepository
 }
 
 // repositoryImpl is the concrete implementation of Repository
 type repositoryImpl struct {
-	user     UserRepository
-	quiz     QuizRepository
-	question QuestionRepository
+	user        UserRepository
+	quiz        QuizRepository
+	question    QuestionRepository
+	leaderboard LeaderboardRepository
+	answer      AnswerRepository
 }
 
 // NewRepository creates a new instance of Repository
-func NewRepository(db *gorm.DB) Repository {
+func NewRepository(db *gorm.DB, rdb *redis.Client) Repository {
 	return &repositoryImpl{
-		user:     NewUserRepository(db),
-		quiz:     NewQuizRepository(db),
-		question: NewQuestionRepository(db),
+		user:        NewUserRepository(db),
+		quiz:        NewQuizRepository(db),
+		question:    NewQuestionRepository(db),
+		leaderboard: NewLeaderboardRepository(rdb),
+		answer:      NewAnswerRepository(db),
 	}
 }
 
@@ -37,4 +44,12 @@ func (r *repositoryImpl) Quiz() QuizRepository {
 
 func (r *repositoryImpl) Question() QuestionRepository {
 	return r.question
+}
+
+func (r *repositoryImpl) Leaderboard() LeaderboardRepository {
+	return r.leaderboard
+}
+
+func (r *repositoryImpl) Answer() AnswerRepository {
+	return r.answer
 }

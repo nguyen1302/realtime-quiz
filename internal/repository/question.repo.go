@@ -11,6 +11,7 @@ import (
 type QuestionRepository interface {
 	Create(ctx context.Context, question *models.Question) error
 	GetByQuizID(ctx context.Context, quizID uuid.UUID) ([]models.Question, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*models.Question, error)
 }
 
 type questionRepository struct {
@@ -31,4 +32,12 @@ func (r *questionRepository) GetByQuizID(ctx context.Context, quizID uuid.UUID) 
 		return nil, err
 	}
 	return questions, nil
+}
+
+func (r *questionRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Question, error) {
+	var question models.Question
+	if err := r.db.WithContext(ctx).First(&question, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &question, nil
 }

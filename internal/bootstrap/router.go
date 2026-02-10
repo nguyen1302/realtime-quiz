@@ -7,18 +7,19 @@ import (
 	"github.com/nguyen1302/realtime-quiz/internal/middleware"
 	"github.com/nguyen1302/realtime-quiz/internal/repository"
 	"github.com/nguyen1302/realtime-quiz/internal/service"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 type Router struct {
 	engine   *gin.Engine
-	handlers handler.Handler // Interface
-	services service.Service // Interface
+	handlers handler.Handler
+	services service.Service
 }
 
-func NewRouter(db *gorm.DB, cfg *config.Config) *Router {
+func NewRouter(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *Router {
 	// Initialize managers
-	repos := repository.NewRepository(db)
+	repos := repository.NewRepository(db, rdb)
 	services := service.NewService(repos, cfg)
 	handlers := handler.NewHandler(services)
 
@@ -50,6 +51,9 @@ func (r *Router) setupRoutes() {
 		auth.POST("/login", r.handlers.Auth().Login)
 	}
 
+	// WebSocket route
+	api.GET("/ws", r.handlers.Realtime().HandleConnection)
+
 	// Protected routes
 	protected := api.Group("")
 	protected.Use(middleware.AuthMiddleware(r.services.Auth()))
@@ -62,6 +66,8 @@ func (r *Router) setupRoutes() {
 			quizzes.POST("", r.handlers.Quiz().CreateQuiz)
 			quizzes.GET("/:id", r.handlers.Quiz().GetQuiz)
 			quizzes.POST("/:id/questions", r.handlers.Quiz().AddQuestion)
+			quizzes.POST("/:id/submit", r.handlers.Quiz().SubmitAnswer)
+			quizzes.GET("/:id/leaderboard", r.handlers.Quiz().GetLeaderboard)
 			quizzes.POST("/join", r.handlers.Quiz().JoinQuiz)
 		}
 	}

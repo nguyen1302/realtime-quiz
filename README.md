@@ -36,6 +36,7 @@ This project implements a real-time quiz system that allows users to:
 | **Multi-user Support** | ✅     | Multiple users can join the same quiz session simultaneously |
 | **Real-Time Scores**   | ✅     | Scores update instantly as users submit answers              |
 | **Live Leaderboard**   | ✅     | Leaderboard reflects current standings in real-time          |
+| **Idempotency**        | ✅     | Prevents duplicate answer submissions                        |
 
 ### Additional Features
 
@@ -102,7 +103,8 @@ realtime-quiz/
 │   ├── repository/              # Data access layer
 │   │   ├── interfaces.go        # Repository interfaces
 │   │   ├── question.repo.go     # Question repository
-│   │   └── quiz.repo.go         # Quiz repository
+│   │   ├── quiz.repo.go         # Quiz repository
+│   │   └── answer.repo.go       # Answer repository
 │   └── service/                 # Business logic layer
 │       ├── interfaces.go        # Service interfaces
 │       ├── leaderboard.service.go # Leaderboard logic
@@ -112,6 +114,8 @@ realtime-quiz/
 │   └── response/                # HTTP response helpers
 │       └── response.go
 ├── tests/                       # Integration tests
+│   ├── api/                     # API Integration tests
+│   └── manual/                  # Manual test scripts
 ├── web/                         # Static web files (optional)
 ├── docker-compose.yaml          # Docker services config
 ├── go.mod                       # Go module definition
@@ -151,7 +155,7 @@ realtime-quiz/
 
    ```bash
    # Using go-migrate or similar tool
-   migrate -path ./migrations -database "postgres://quiz:quiz123@localhost:5432/realtime_quiz?sslmode=disable" up
+   migrate -path ./migrations -database "postgres://quiz:quiz123@localhost:5433/realtime_quiz?sslmode=disable" up
    ```
 
 5. **Start the server**
@@ -167,7 +171,7 @@ The server will be available at `http://localhost:8080`
 | ------------- | ------------- | ----------------- |
 | `SERVER_PORT` | 8080          | HTTP server port  |
 | `DB_HOST`     | localhost     | PostgreSQL host   |
-| `DB_PORT`     | 5432          | PostgreSQL port   |
+| `DB_PORT`     | 5433          | PostgreSQL port   |
 | `DB_USER`     | quiz          | Database user     |
 | `DB_PASSWORD` | quiz123       | Database password |
 | `DB_NAME`     | realtime_quiz | Database name     |
@@ -203,8 +207,10 @@ The server will be available at `http://localhost:8080`
 ### WebSocket Endpoint
 
 ```
-ws://localhost:8080/ws/quiz/:quiz_id
+ws://localhost:8080/ws/quiz/:quiz_id?token=<jwt_token>
 ```
+
+_Note: If the `Authorization` header cannot be set (e.g., in standard JS WebSocket), pass the token via the `token` query parameter._
 
 ## 🔌 WebSocket Events
 
@@ -324,7 +330,7 @@ go test -cover ./...
 go test ./internal/service/...
 
 # Run integration tests
-go test ./tests/...
+go test ./tests/api/...
 ```
 
 ---
