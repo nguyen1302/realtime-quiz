@@ -41,21 +41,22 @@ This project implements a real-time quiz system that allows users to:
 ### Additional Features
 
 - 🔐 **Authentication Middleware** - Secure user sessions
-- 📊 **Accurate Scoring System** - Consistent and fair score calculation
+- 📊 **Exponential Decay Scoring** - First correct answer gets max points, decreasing by rank (0.9 decay factor)
+- ⏱️ **Timestamp Tie-Breaking** - Earlier submissions rank higher on ties
 - 🚀 **High Performance** - Built with Go for maximum concurrency
 - 🔄 **WebSocket Communication** - Low-latency real-time updates
 - 📝 **RESTful API** - Standard HTTP endpoints for quiz management
 
 ## 🛠 Tech Stack
 
-| Component            | Technology              |
-| -------------------- | ----------------------- |
-| **Language**         | Go 1.23+                |
-| **Web Framework**    | Gin                     |
-| **WebSocket**        | Gorilla WebSocket       |
-| **Database**         | PostgreSQL 16           |
-| **Cache/Pub-Sub**    | Redis 7                 |
-| **Containerization** | Docker & Docker Compose |
+| Component            | Technology                      |
+| -------------------- | ------------------------------- |
+| **Language**         | Go 1.23+                        |
+| **Web Framework**    | Gin                             |
+| **WebSocket**        | Gorilla WebSocket               |
+| **Database**         | PostgreSQL 16                   |
+| **Cache/Pub-Sub**    | Redis 7 (Pub/Sub & Sorted Sets) |
+| **Containerization** | Docker & Docker Compose         |
 
 ## 📁 Project Structure
 
@@ -159,8 +160,18 @@ realtime-quiz/
    ```
 
 5. **Start the server**
+
    ```bash
    go run cmd/server/main.go
+   ```
+
+6. **Automated Verification** (Optional)
+
+   Run the end-to-end test scenario to verify the full flow (Registration -> Quiz Creation -> Gameplay -> Leaderboard):
+
+   ```bash
+   chmod +x scripts/test_scenario.sh
+   ./scripts/test_scenario.sh
    ```
 
 The server will be available at `http://localhost:8080`
@@ -184,25 +195,28 @@ The server will be available at `http://localhost:8080`
 
 #### Quiz Management
 
-| Method | Endpoint                     | Description         |
-| ------ | ---------------------------- | ------------------- |
-| `POST` | `/api/v1/quiz`               | Create a new quiz   |
-| `GET`  | `/api/v1/quiz/:id`           | Get quiz details    |
-| `GET`  | `/api/v1/quiz/:id/questions` | Get quiz questions  |
-| `POST` | `/api/v1/quiz/:id/join`      | Join a quiz session |
+| Method | Endpoint                        | Description            |
+| ------ | ------------------------------- | ---------------------- |
+| `POST` | `/api/v1/quizzes`               | Create a new quiz      |
+| `GET`  | `/api/v1/quizzes/:id`           | Get quiz details       |
+| `GET`  | `/api/v1/quizzes/:id/questions` | Get quiz questions     |
+| `POST` | `/api/v1/quizzes/:id/questions` | Add a question to quiz |
+| `POST` | `/api/v1/quizzes/join`          | Join a quiz session    |
+| `POST` | `/api/v1/quizzes/:id/submit`    | Submit an answer       |
 
 #### User
 
 | Method | Endpoint                | Description         |
 | ------ | ----------------------- | ------------------- |
-| `POST` | `/api/v1/user/register` | Register a new user |
-| `POST` | `/api/v1/user/login`    | User login          |
+| `POST` | `/api/v1/auth/register` | Register a new user |
+| `POST` | `/api/v1/auth/login`    | User login          |
+| `GET`  | `/api/v1/auth/me`       | Get current user    |
 
 #### Leaderboard
 
-| Method | Endpoint                       | Description             |
-| ------ | ------------------------------ | ----------------------- |
-| `GET`  | `/api/v1/quiz/:id/leaderboard` | Get current leaderboard |
+| Method | Endpoint                          | Description             |
+| ------ | --------------------------------- | ----------------------- |
+| `GET`  | `/api/v1/quizzes/:id/leaderboard` | Get current leaderboard |
 
 ### WebSocket Endpoint
 
@@ -305,7 +319,7 @@ _Note: If the `Authorization` header cannot be set (e.g., in standard JS WebSock
 │                      Data Layer                                 │
 │  ┌─────────────────────────┐    ┌─────────────────────────────┐ │
 │  │       PostgreSQL        │    │           Redis             │ │
-│  │   (Persistent Data)     │    │   (Cache & Pub/Sub)         │ │
+│  │   (Persistent Data)     │    │(Cache, Pub/Sub, Sorted Sets)│ │
 │  └─────────────────────────┘    └─────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
 ```
